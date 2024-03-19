@@ -1,0 +1,14 @@
+{
+  "name": "workers",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "postCreateCommand": "npm install",
+  "waitFor": "postCreateCommand",
+  "customizations": {
+    "vscode": {
+      "extensions": ["biomejs.biome"]
+    }
+  },
+  "containerEnv": {
+    "GH_TOKEN": "${localEnv:GH_TOKEN}"
+  }
+}

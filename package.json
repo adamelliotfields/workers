@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "name": "workers",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "biome ci ."
+  },
+  "dependencies": {
+    "@biomejs/biome": "1.6.1",
+    "@cloudflare/workers-types": "4.20240222.0"
+  }
+}

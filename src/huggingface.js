@@ -20,13 +20,13 @@ const modelByTask = {
 }
 
 export default {
-  fetch: async (req, env) => {
-    if (req.method === 'OPTIONS') return wrap(handleOptions)()
+  fetch: (req, env) => {
+    if (req.method === 'OPTIONS') return wrap(OPTIONS)()
 
     switch (new URL(req.url).pathname) {
       case '/':
-        if (req.method === 'GET') return wrap(handleGet)(req, env)
-        if (req.method === 'POST') return wrap(handlePost)(req, env)
+        if (req.method === 'GET') return wrap(GET)(req, env)
+        if (req.method === 'POST') return wrap(POST)(req, env)
         return new Response('Method Not Allowed', { status: 405 })
       case '/chat/completions':
       case '/chat/completions/':
@@ -39,7 +39,7 @@ export default {
 }
 
 // GET uses query params for convenience
-async function handleGet(req, env) {
+async function GET(req, env) {
   // https://developers.cloudflare.com/workers/configuration/environment-variables
   const { HF_TOKEN } = env // NOTE: use your read_only token
   const url = new URL(req.url)
@@ -74,7 +74,7 @@ async function handleGet(req, env) {
 }
 
 // POST uses the request body instead of query params
-async function handlePost(req, env) {
+async function POST(req, env) {
   const { HF_TOKEN } = env
   let json
 
@@ -115,6 +115,24 @@ async function handlePost(req, env) {
     token: HF_TOKEN,
     body: { inputs, parameters }
   })
+}
+
+// OPTIONS for CORS
+async function OPTIONS() {
+  const res = new Response(null, {
+    status: 204, // no content
+    headers: {
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': [
+        'Accept',
+        'Authorization',
+        'Content-Type',
+        'X-Use-Cache',
+        'X-Wait-For-Model'
+      ].join(', ')
+    }
+  })
+  return withHeaders(res)
 }
 
 // chat completions
@@ -172,24 +190,6 @@ async function handleProxy(req, env) {
     const text = await res.text()
     throw new HttpError(res.status, res.statusText, text)
   }
-  return withHeaders(res)
-}
-
-// OPTIONS for CORS
-async function handleOptions() {
-  const res = new Response(null, {
-    status: 204, // no content
-    headers: {
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': [
-        'Accept',
-        'Authorization',
-        'Content-Type',
-        'X-Use-Cache',
-        'X-Wait-For-Model'
-      ].join(', ')
-    }
-  })
   return withHeaders(res)
 }
 

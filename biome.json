@@ -26,6 +26,9 @@
         "noUndeclaredVariables": "error",
         "noUnusedVariables": "error"
       },
+      "style": {
+        "useNumberNamespace": "off"
+      },
       "suspicious": {
         "noArrayIndexKey": "off"
       }

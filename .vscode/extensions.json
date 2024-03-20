@@ -1,4 +1,4 @@
 {
-  "recommendations": ["biomejs.biome"],
+  "recommendations": ["biomejs.biome", "oven.bun-vscode", "tamasfe.even-better-toml"],
   "unwantedRecommendations": []
 }

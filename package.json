@@ -4,10 +4,19 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "lint": "biome ci ."
+    "start:hf": "wrangler dev ./huggingface/worker.ts",
+    "deploy:hf": "wrangler deploy ./huggingface/worker.ts",
+    "start:pplx": "wrangler dev ./perplexity/worker.ts",
+    "deploy:pplx": "wrangler deploy ./perplexity/worker.ts",
+    "lint": "biome ci .",
+    "test": "bun test"
   },
   "dependencies": {
     "@biomejs/biome": "1.6.1",
-    "@cloudflare/workers-types": "4.20240222.0"
+    "@cloudflare/workers-types": "4.20240222.0",
+    "@types/bun": "1.0.10",
+    "hono": "4.1.3",
+    "typescript": "5.4.2",
+    "wrangler": "3.34.2"
   }
 }

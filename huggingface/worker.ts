@@ -54,7 +54,7 @@ app.use(secret())
 app.use(cors())
 
 // GET /
-app.get('/', (c) => {
+app.get('/', async (c) => {
   const { HF_TOKEN, SECRET } = c.env
   const url = new URL(c.req.url)
   const params = url.searchParams
@@ -97,11 +97,8 @@ app.get('/', (c) => {
     Authorization: HF_TOKEN ? `Bearer ${HF_TOKEN}` : undefined,
     'X-Use-Cache': cache ? 'true' : 'false'
   }
-  return client.post(
-    `/models/${model}`,
-    { inputs, parameters },
-    { headers }
-  ) as unknown as Promise<Response>
+  const res = await client.post(`/models/${model}`, { inputs, parameters }, { headers })
+  return new Response(res.data, res)
 })
 
 // POST /
@@ -133,11 +130,8 @@ app.post('/', async (c) => {
     Authorization: HF_TOKEN ? `Bearer ${HF_TOKEN}` : undefined,
     'X-Use-Cache': cache ? 'true' : 'false'
   }
-  return client.post(
-    `/models/${model}`,
-    { inputs, parameters },
-    { headers }
-  ) as unknown as Promise<Response>
+  const res = await client.post(`/models/${model}`, { inputs, parameters }, { headers })
+  return new Response(res.data, res)
 })
 
 // POST /chat/completions
@@ -162,11 +156,12 @@ app.post('/chat/completions', async (c) => {
     Authorization: HF_TOKEN ? `Bearer ${HF_TOKEN}` : undefined,
     'X-Use-Cache': 'false'
   }
-  return client.post(
+  const res = await client.post(
     `/models/${model}/v1/chat/completions`,
     { model, ...parameters },
     { headers }
-  ) as unknown as Promise<Response>
+  )
+  return new Response(res.data, res)
 })
 
 app.all(

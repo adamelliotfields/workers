@@ -38,7 +38,7 @@ app.use(cors())
 
 // GET /
 // curl http://localhost:8787?prompt=What+is+the+meaning+of+life&model=sonar-medium-chat
-app.get('/', (c) => {
+app.get('/', async (c) => {
   const { PPLX_API_KEY, SECRET } = c.env
   const url = new URL(c.req.url)
   const params = url.searchParams
@@ -71,12 +71,13 @@ app.get('/', (c) => {
   Reflect.deleteProperty(body, 'system')
 
   // fetch
-  return client.post('/chat/completions', body, {
+  const res = await client.post('/chat/completions', body, {
     headers: {
       Accept: body.stream ? 'text/event-stream' : undefined,
       Authorization: PPLX_API_KEY ? `Bearer ${PPLX_API_KEY}` : undefined
     }
-  }) as unknown as Promise<Response>
+  })
+  return new Response(res.data, res)
 })
 
 // POST /
@@ -88,12 +89,13 @@ app.post('/', async (c) => {
     // throws if bad
     const body: Parameters = await c.req.json()
     body.model = body.model ?? DEFAULT_MODEL
-    return client.post('/chat/completions', body, {
+    const res = await client.post('/chat/completions', body, {
       headers: {
         Accept: body.stream ? 'text/event-stream' : undefined,
         Authorization: PPLX_API_KEY ? `Bearer ${PPLX_API_KEY}` : undefined
       }
-    }) as unknown as Promise<Response>
+    })
+    return new Response(res.data, res)
   } catch (err) {
     throw new HTTPException(400, { message: err.message })
   }

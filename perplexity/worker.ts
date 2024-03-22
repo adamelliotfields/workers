@@ -9,7 +9,7 @@ import axios from 'redaxios'
 import handleError from '../lib/handle-error'
 import handleProxy from '../lib/handle-proxy'
 import parseParams from '../lib/parse-params'
-import type { Parameters } from '../lib/types'
+import type { Env, Parameters } from '../lib/types'
 
 import cors from '../middleware/cors'
 import secret from '../middleware/secret'
@@ -39,7 +39,7 @@ app.use(cors())
 // GET /
 // curl http://localhost:8787?prompt=What+is+the+meaning+of+life&model=sonar-medium-chat
 app.get('/', async (c) => {
-  const { PPLX_API_KEY, SECRET } = c.env
+  const { PPLX_API_KEY, SECRET } = c.env as Env
   const url = new URL(c.req.url)
   const params = url.searchParams
 
@@ -83,7 +83,7 @@ app.get('/', async (c) => {
 // POST /
 // curl http://localhost:8787 -X POST -d '{ "messages": [{ "role": "system", "content": "Be awesome." }, { "role": "user", "content": "How are you?" }] }'
 app.post('/', async (c) => {
-  const { PPLX_API_KEY } = c.env
+  const { PPLX_API_KEY } = c.env as Env
 
   try {
     // throws if bad

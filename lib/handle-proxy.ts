@@ -1,12 +1,14 @@
 import type { Handler } from 'hono'
 
+import type { Env } from './types'
+
 export interface ProxyConfig {
   /** The URL to proxy requests to. */
   url: string
   /** Optional additional headers to include in the proxied request. */
   addHeaders?: Record<string, string>
   /** Optional secret environment variable name to use as a token. */
-  envToken?: string
+  envToken?: keyof Env
   /** Use API key instead of Bearer auth. */
   useApiKey?: boolean
 }

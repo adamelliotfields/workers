@@ -1,13 +1,17 @@
 // Environment variables:
-//   * HF_TOKEN: Hugging Face API token (read only)
+//   * HF_TOKEN: Your Hugging Face API token (read only)
+//   * ORIGIN: The origin to allow in CORS headers
 
 import { Hono } from 'hono'
-import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
-import type { StatusCode } from 'hono/utils/http-status'
+import axios from 'redaxios'
 
+import handleError from '../lib/handle-error'
+import handleProxy from '../lib/handle-proxy'
 import parseParams from '../lib/parse-params'
-import type { Parameters } from '../lib/types'
+import type { Env, Parameters } from '../lib/types'
+
+import cors from '../middleware/cors'
 import secret from '../middleware/secret'
 
 const BASE_URL = 'https://api-inference.huggingface.co'
@@ -29,36 +33,28 @@ const modelByTask = {
   'zero-shot-classification': 'typeform/distilbert-base-uncased-mnli'
 }
 
+const client = axios.create({
+  baseURL: BASE_URL,
+  responseType: 'stream', // stream is actually just the raw response body
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Wait-For-Model': 'true'
+  }
+})
+
 const app = new Hono({ strict: false })
 
 // error handler
-app.onError((err, c) => {
-  console.error(err)
-  if (err instanceof HTTPException) return err.getResponse()
-  return c.text(err.message, { status: 500 })
-})
+app.onError(handleError)
 
 // secret key if set
 app.use(secret())
 
 // CORS headers
-app.use(
-  cors({
-    origin: '*',
-    credentials: true,
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: [
-      'Accept',
-      'Authorization',
-      'Content-Type',
-      'X-Api-Key', // only if using secret middleware
-      'X-Use-Cache'
-    ]
-  })
-)
+app.use(cors())
 
 // GET /
-app.get('/', (c) => {
+app.get('/', async (c) => {
   const { HF_TOKEN, SECRET } = c.env
   const url = new URL(c.req.url)
   const params = url.searchParams
@@ -97,13 +93,12 @@ app.get('/', (c) => {
   const task = params.get('task') ?? DEFAULT_TASK
   const model = params.get('model') ?? modelByTask[task] ?? DEFAULT_MODEL
 
-  // fetch
-  return huggingFaceFetch({
-    cache,
-    model,
-    token: HF_TOKEN,
-    body: { inputs, parameters }
-  })
+  const headers = {
+    Authorization: HF_TOKEN ? `Bearer ${HF_TOKEN}` : undefined,
+    'X-Use-Cache': cache ? 'true' : 'false'
+  }
+  const res = await client.post(`/models/${model}`, { inputs, parameters }, { headers })
+  return new Response(res.data, res)
 })
 
 // POST /
@@ -119,13 +114,7 @@ app.post('/', async (c) => {
   }
 
   // defaults
-  const {
-    context = null,
-    question = null,
-    task = DEFAULT_TASK,
-    use_cache = false,
-    ...parameters
-  } = json
+  const { task = DEFAULT_TASK, use_cache = false, ...parameters } = json
 
   const inputs = parameters.inputs
   const model = parameters?.model ?? modelByTask[task as string] ?? DEFAULT_MODEL
@@ -137,17 +126,17 @@ app.post('/', async (c) => {
   }
 
   // fetch
-  return huggingFaceFetch({
-    cache,
-    model,
-    token: HF_TOKEN,
-    body: { inputs, parameters }
-  })
+  const headers = {
+    Authorization: HF_TOKEN ? `Bearer ${HF_TOKEN}` : undefined,
+    'X-Use-Cache': cache ? 'true' : 'false'
+  }
+  const res = await client.post(`/models/${model}`, { inputs, parameters }, { headers })
+  return new Response(res.data, res)
 })
 
 // POST /chat/completions
 app.post('/chat/completions', async (c) => {
-  const { HF_TOKEN } = c.env
+  const { HF_TOKEN } = c.env as Env
   let parameters: Parameters
 
   // empty request body throws
@@ -162,75 +151,26 @@ app.post('/chat/completions', async (c) => {
   Reflect.deleteProperty(parameters, 'model')
 
   // fetch
-  return huggingFaceFetch({
-    model,
-    chat: true, // use chat endpoint
-    stream: parameters.stream as boolean,
-    token: HF_TOKEN,
-    body: { model, ...parameters }
-  })
-})
-
-// proxy
-app.all('*', async (c) => {
-  const { HF_TOKEN } = c.env
-
-  const host = c.req.header('Host')
-  const authorization = c.req.header('Authorization')
-  const useCache = c.req.header('X-Use-Cache')
-
-  // replace the host to match the origin and ensure https
-  const newHost = BASE_URL.slice(8)
-  const { href } = new URL(c.req.url)
-  let url = href.replace(host, newHost)
-  url = url.replace('http://', 'https://')
-
-  // incoming requests are immutable
-  const r = new Request(url, c.req.raw)
-  r.headers.set('Host', newHost)
-  r.headers.set('X-Use-Cache', useCache ?? 'false')
-  r.headers.set('X-Wait-For-Model', 'true')
-
-  if (HF_TOKEN) r.headers.set('Authorization', `Bearer ${HF_TOKEN}`)
-  if (authorization) r.headers.set('Authorization', authorization) // honor the original token
-
-  // fetch
-  const res = await fetch(r)
-  if (!res.ok) {
-    const message = await res.text()
-    throw new HTTPException(res.status as StatusCode, { message })
+  const headers = {
+    Accept: parameters.stream ? 'text/event-stream' : undefined,
+    Authorization: HF_TOKEN ? `Bearer ${HF_TOKEN}` : undefined,
+    'X-Use-Cache': 'false'
   }
-  return new Response(res.body, res) // the response returned by fetch is immutable
+  const res = await client.post(
+    `/models/${model}/v1/chat/completions`,
+    { model, ...parameters },
+    { headers }
+  )
+  return new Response(res.data, res)
 })
+
+app.all(
+  '*',
+  handleProxy({
+    url: BASE_URL,
+    envToken: 'HF_TOKEN',
+    addHeaders: { 'X-Wait-For-Model': 'true' }
+  })
+)
 
 export default app
-
-// client
-async function huggingFaceFetch({
-  body = {},
-  cache = false,
-  chat = false,
-  model = DEFAULT_MODEL,
-  stream = false,
-  token
-}) {
-  const url = chat
-    ? `${BASE_URL}/models/${model}/v1/chat/completions`
-    : `${BASE_URL}/models/${model}`
-  const res = await fetch(url, {
-    method: 'POST',
-    body: JSON.stringify(body),
-    headers: {
-      Accept: stream ? 'text/event-stream' : undefined,
-      Authorization: token ? `Bearer ${token}` : undefined,
-      'Content-Type': 'application/json',
-      'X-Wait-For-Model': 'true',
-      'X-Use-Cache': cache ? 'true' : 'false'
-    }
-  })
-  if (!res.ok) {
-    const message = await res.text()
-    throw new HTTPException(res.status as StatusCode, { message })
-  }
-  return new Response(res.body, res) // the response returned by fetch is immutable
-}

@@ -1,48 +1,44 @@
 // Environment variables:
 //   * PPLX_API_KEY: Your Perplexity API key
+//   * ORIGIN: The origin to allow in CORS headers
 
 import { Hono } from 'hono'
-import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
-import type { StatusCode } from 'hono/utils/http-status'
+import axios from 'redaxios'
 
+import handleError from '../lib/handle-error'
+import handleProxy from '../lib/handle-proxy'
 import parseParams from '../lib/parse-params'
 import type { Parameters } from '../lib/types'
+
+import cors from '../middleware/cors'
 import secret from '../middleware/secret'
 
 const BASE_URL = 'https://api.perplexity.ai'
 const DEFAULT_MODEL = 'mistral-7b-instruct'
 
+const client = axios.create({
+  baseURL: BASE_URL,
+  responseType: 'stream', // stream is actually just the raw response body
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
 const app = new Hono({ strict: false })
 
 // error handler
-app.onError((err, c) => {
-  console.error(err)
-  if (err instanceof HTTPException) return err.getResponse()
-  return c.text(err.message, { status: 500 })
-})
+app.onError(handleError)
 
 // secret key if set
 app.use(secret())
 
 // CORS headers
-app.use(
-  cors({
-    origin: '*',
-    credentials: true,
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: [
-      'Accept',
-      'Authorization',
-      'Content-Type',
-      'X-Api-Key' // only if using secret middleware
-    ]
-  })
-)
+app.use(cors())
 
 // GET /
 // curl http://localhost:8787?prompt=What+is+the+meaning+of+life&model=sonar-medium-chat
-app.get('/', (c) => {
+app.get('/', async (c) => {
   const { PPLX_API_KEY, SECRET } = c.env
   const url = new URL(c.req.url)
   const params = url.searchParams
@@ -75,7 +71,13 @@ app.get('/', (c) => {
   Reflect.deleteProperty(body, 'system')
 
   // fetch
-  return perplexityFetch({ body, token: PPLX_API_KEY })
+  const res = await client.post('/chat/completions', body, {
+    headers: {
+      Accept: body.stream ? 'text/event-stream' : undefined,
+      Authorization: PPLX_API_KEY ? `Bearer ${PPLX_API_KEY}` : undefined
+    }
+  })
+  return new Response(res.data, res)
 })
 
 // POST /
@@ -84,8 +86,16 @@ app.post('/', async (c) => {
   const { PPLX_API_KEY } = c.env
 
   try {
+    // throws if bad
     const body: Parameters = await c.req.json()
-    return perplexityFetch({ body, token: PPLX_API_KEY })
+    body.model = body.model ?? DEFAULT_MODEL
+    const res = await client.post('/chat/completions', body, {
+      headers: {
+        Accept: body.stream ? 'text/event-stream' : undefined,
+        Authorization: PPLX_API_KEY ? `Bearer ${PPLX_API_KEY}` : undefined
+      }
+    })
+    return new Response(res.data, res)
   } catch (err) {
     throw new HTTPException(400, { message: err.message })
   }
@@ -93,57 +103,6 @@ app.post('/', async (c) => {
 
 // POST /chat/completions (proxy)
 // curl http://localhost:8787/chat/completions -X POST -H 'Content-Type: application/json' -d '{ "model": "mistral-7b-instruct", "messages": [{ "role": "system", "content": "Be precise." }, { "role": "user", "content": "Explain backpropagation." }] }'
-app.post('/chat/completions', async (c) => {
-  const { PPLX_API_KEY } = c.env
-
-  const host = c.req.header('Host')
-  const authorization = c.req.header('Authorization')
-
-  // replace the host to match the origin and ensure https
-  const newHost = BASE_URL.slice(8)
-  const { href } = new URL(c.req.url)
-  let url = href.replace(host, newHost)
-  url = url.replace('http://', 'https://')
-
-  // incoming requests are immutable
-  const r = new Request(url, c.req.raw)
-  r.headers.set('Host', newHost)
-
-  // add authorization
-  if (PPLX_API_KEY) r.headers.set('Authorization', `Bearer ${PPLX_API_KEY}`)
-  if (authorization) r.headers.set('Authorization', authorization) // honor the original token
-
-  // fetch
-  const res = await fetch(r)
-  if (!res.ok) {
-    const message = await res.text()
-    throw new HTTPException(res.status as StatusCode, { message })
-  }
-  return new Response(res.body, res) // the response returned by fetch is immutable
-})
+app.post('/chat/completions', handleProxy({ url: BASE_URL, envToken: 'PPLX_API_KEY' }))
 
 export default app
-
-// client
-async function perplexityFetch({
-  body = {},
-  model = DEFAULT_MODEL,
-  stream = false,
-  token
-}) {
-  const url = `${BASE_URL}/chat/completions`
-  const res = await fetch(url, {
-    method: 'POST',
-    body: JSON.stringify({ model, ...body }),
-    headers: {
-      Accept: stream ? 'text/event-stream' : undefined,
-      Authorization: token ? `Bearer ${token}` : undefined,
-      'Content-Type': 'application/json'
-    }
-  })
-  if (!res.ok) {
-    const message = await res.text()
-    throw new HTTPException(res.status as StatusCode, { message })
-  }
-  return new Response(res.body, res) // the response returned by fetch is immutable
-}

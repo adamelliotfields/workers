@@ -1,4 +1,6 @@
-export interface Env {
+import type { Bindings } from 'hono/types'
+
+export interface Env extends Bindings {
   [key: string]: string
 }
 

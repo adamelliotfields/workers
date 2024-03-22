@@ -21,11 +21,17 @@ export CLOUDFLARE_API_TOKEN=...
 
 ## Usage
 
+### Environment variables
+
 Each worker depends on a `.dev.vars` in its directory. These set secrets on the `env` object during development. For example, the `huggingface` worker would require this in `huggingface/.dev.vars`:
 
 ```
 HF_TOKEN=hf_...
 ```
+
+Use `wrangler secret {list,put,delete} --name=...` to manage secrets for a deployed worker (or use the [dash](https://dash.cloudflare.com)).
+
+### Scripts
 
 Each worker gets its own `start` and `deploy` script:
 
@@ -36,12 +42,6 @@ bun start:hf
 # deploy the huggingface worker to hf.you.workers.dev
 bun deploy:hf
 ```
-
-### Authentication
-
-If `SECRET` is set in the worker's environment, then the worker looks for either a `X-Api-Key` header or `?api_key` query parameter that matches the secret.
-
-If `SECRET` is not set, then the worker is public.
 
 ## Workers
 

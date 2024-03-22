@@ -55,7 +55,7 @@ app.use(cors())
 
 // GET /
 app.get('/', async (c) => {
-  const { HF_TOKEN, SECRET } = c.env
+  const { HF_TOKEN, SECRET } = c.env as Env
   const url = new URL(c.req.url)
   const params = url.searchParams
 
@@ -103,7 +103,7 @@ app.get('/', async (c) => {
 
 // POST /
 app.post('/', async (c) => {
-  const { HF_TOKEN } = c.env
+  const { HF_TOKEN } = c.env as Env
   let json: Parameters
 
   // empty request body throws

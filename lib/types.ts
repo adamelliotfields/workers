@@ -1,7 +1,10 @@
 import type { Bindings } from 'hono/types'
 
 export interface Env extends Bindings {
-  [key: string]: string
+  HF_TOKEN?: string
+  PPLX_API_KEY?: string
+  ORIGIN?: string
+  SECRET?: string
 }
 
 export type ParameterValue =

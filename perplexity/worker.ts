@@ -1,17 +1,18 @@
 // Environment variables:
-//   * PPLX_API_KEY: Your Perplexity API key
+//   * PPLX_API_KEY: Your Perplexity API key (required)
 //   * ORIGIN: The origin to allow in CORS headers
 
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import axios from 'redaxios'
 
-import handleError from '../lib/handle-error'
-import handleProxy from '../lib/handle-proxy'
-import parseParams from '../lib/parse-params'
-import type { Env, Parameters } from '../lib/types'
+import handleError from '../utils/handle-error'
+import handleProxy from '../utils/handle-proxy'
+import parseParams from '../utils/parse-params'
+import type { Env, Parameters } from '../utils/types'
 
 import cors from '../middleware/cors'
+import env from '../middleware/env'
 import secret from '../middleware/secret'
 
 const BASE_URL = 'https://api.perplexity.ai'
@@ -30,10 +31,9 @@ const app = new Hono({ strict: false })
 // error handler
 app.onError(handleError)
 
-// secret key if set
+// middleware
+app.use(env(['PPLX_API_KEY']))
 app.use(secret())
-
-// CORS headers
 app.use(cors())
 
 // GET /

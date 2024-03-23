@@ -1,7 +1,7 @@
 import { cors as corsMiddleware } from 'hono/cors'
 import type { MiddlewareHandler } from 'hono/types'
 
-import type { Env } from '../lib/types'
+import type { Env } from '../utils/types'
 
 export interface CorsConfig {
   addMethods?: string[]

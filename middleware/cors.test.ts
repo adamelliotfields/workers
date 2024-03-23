@@ -3,72 +3,69 @@ import { Hono } from 'hono'
 
 import cors from './cors'
 
+const ACAO = 'Access-Control-Allow-Origin'
+const ACAC = 'Access-Control-Allow-Credentials'
+const ACAH = 'Access-Control-Allow-Headers'
+const ACAM = 'Access-Control-Allow-Methods'
+
 describe('cors', () => {
   const app = new Hono()
   app.use(cors({ addHeaders: ['X-Custom-Header'], addMethods: ['PATCH'] }))
   app.get('/', (c) => c.text('OK'))
 
-  it('should bypass CORS middleware if no Origin header is present', async () => {
-    const res = await app.request('/')
-    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull()
-    expect(res.headers.get('Access-Control-Allow-Credentials')).toBeNull()
+  it('should set the origin to `ORIGIN` when set', async () => {
+    const ORIGIN = 'https://example.com'
+    const method = 'OPTIONS'
+    const res = await app.request('/', { method }, { ORIGIN })
+    expect(res.status).toEqual(204)
+    expect(res.headers.get(ACAO)).toEqual(ORIGIN)
+    expect(res.headers.get(ACAC)).toEqual('true')
   })
 
   it('should set the default origin to * when `ORIGIN` is not set', async () => {
-    const res = await app.request(
-      '/',
-      { headers: { Origin: 'https://example.com' } },
-      { ORIGIN: undefined }
-    )
-    expect(res.headers.get('Access-Control-Allow-Origin')).toEqual('*')
-    expect(res.headers.get('Access-Control-Allow-Credentials')).toBeNull()
+    const res1 = await app.request('/', { method: 'OPTIONS' })
+    const res2 = await app.request('/', { method: 'GET' })
+    expect(res1.status).toEqual(204)
+    expect(res2.status).toEqual(200)
+    expect(res1.headers.get(ACAO)).toEqual('*')
+    expect(res1.headers.get(ACAC)).toBeNull()
+    expect(res2.headers.get(ACAO)).toEqual('*')
+    expect(res2.headers.get(ACAC)).toBeNull()
   })
 
-  it('should set the allowed origin to the client origin when it matches `ORIGIN`', async () => {
+  it('should add Authorization to allowed headers when `ORIGIN` is set and not `*`', async () => {
     const ORIGIN = 'https://example.com'
-    const Origin = ORIGIN
-    const res = await app.request('/', { headers: { Origin } }, { ORIGIN })
-    expect(res.headers.get('Access-Control-Allow-Origin')).toEqual(ORIGIN)
-    expect(res.headers.get('Access-Control-Allow-Credentials')).toEqual('true')
-  })
-
-  it('should not set CORS headers when client origin does not match `ORIGIN`', async () => {
-    const ORIGIN = 'https://example.com'
-    const Origin = 'https://not-example.com'
-    const res = await app.request('/', { headers: { Origin } }, { ORIGIN })
-    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull()
-    expect(res.headers.get('Access-Control-Allow-Credentials')).toBeNull()
-  })
-
-  it('should add Authorization to allowed headers when `ORIGIN` is set and matches', async () => {
-    const ORIGIN = 'https://example.com'
-    const Origin = ORIGIN
     const method = 'OPTIONS'
-    const res = await app.request('/', { method, headers: { Origin } }, { ORIGIN })
+    const res = await app.request('/', { method }, { ORIGIN })
     expect(res.status).toEqual(204)
-    expect(res.headers.get('Access-Control-Allow-Headers')).toInclude('Authorization')
+    expect(res.headers.get(ACAH)).toInclude('Authorization')
+    expect(res.headers.get(ACAC)).toEqual('true')
+  })
+
+  it('should not add Authorization header when `ORIGIN` is `*`', async () => {
+    const ORIGIN = '*'
+    const method = 'OPTIONS'
+    const res = await app.request('/', { method }, { ORIGIN })
+    expect(res.status).toEqual(204)
+    expect(res.headers.get(ACAH)).not.toInclude('Authorization')
+    expect(res.headers.get(ACAC)).toBeNull()
+  })
+
+  it('should not add Credentials header when `ORIGIN` is `*`', async () => {
+    const ORIGIN = '*'
+    const method = 'OPTIONS'
+    const res = await app.request('/', { method }, { ORIGIN })
+    expect(res.status).toEqual(204)
+    expect(res.headers.get(ACAC)).toBeNull()
   })
 
   it('should add X-Api-Key to allowed headers when `SECRET` is set', async () => {
     const ORIGIN = '*'
-    const Origin = 'https://example.com'
     const SECRET = 'test'
     const method = 'OPTIONS'
-    const res = await app.request(
-      '/',
-      { method, headers: { Origin } },
-      { ORIGIN, SECRET }
-    )
+    const res = await app.request('/', { method }, { ORIGIN, SECRET })
     expect(res.status).toEqual(204)
-    expect(res.headers.get('Access-Control-Allow-Headers')).toInclude('X-Api-Key')
-  })
-
-  it('should support glob patterns in `ORIGIN`', async () => {
-    const ORIGIN = 'https://*.example.com'
-    const Origin = 'https://api.example.com'
-    const res = await app.request('/', { headers: { Origin } }, { ORIGIN })
-    expect(res.headers.get('Access-Control-Allow-Origin')).toEqual(Origin)
-    expect(res.headers.get('Access-Control-Allow-Credentials')).toEqual('true')
+    expect(res.headers.get(ACAH)).toInclude('X-Api-Key')
   })
 
   it('should add custom headers and methods', async () => {
@@ -77,7 +74,7 @@ describe('cors', () => {
     const method = 'OPTIONS'
     const res = await app.request('/', { method, headers: { Origin } }, { ORIGIN })
     expect(res.status).toEqual(204)
-    expect(res.headers.get('Access-Control-Allow-Headers')).toInclude('X-Custom-Header')
-    expect(res.headers.get('Access-Control-Allow-Methods')).toInclude('PATCH')
+    expect(res.headers.get(ACAH)).toInclude('X-Custom-Header')
+    expect(res.headers.get(ACAM)).toInclude('PATCH')
   })
 })

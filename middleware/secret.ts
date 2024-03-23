@@ -1,7 +1,7 @@
 import { HTTPException } from 'hono/http-exception'
 import type { MiddlewareHandler } from 'hono/types'
 
-import type { Env } from '../lib/types'
+import type { Env } from '../utils/types'
 
 export default function secret(): MiddlewareHandler {
   return async (c, next) => {

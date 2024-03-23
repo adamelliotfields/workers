@@ -1,4 +1,4 @@
-import type { ParameterValue, Parameters } from '../lib/types'
+import type { ParameterValue, Parameters } from './types'
 
 export interface ParseConfig {
   [key: string]: [(value: string) => ParameterValue, ParameterValue?]

@@ -4,7 +4,7 @@ Cloudflare workers ⚡
 
 ## Installation
 
-[Bun](https://bun.sh) is used for dependencies and tests; [Wrangler](https://developers.cloudflare.com/workers/wrangler) is for development and deployment.
+[Bun](https://bun.sh) is used for deps, tests, and scripts; [Wrangler](https://developers.cloudflare.com/workers/wrangler) is for development and deployment.
 
 ```sh
 # install bun
@@ -29,7 +29,7 @@ Each worker depends on a `.dev.vars` in its directory. These set secrets on the 
 HF_TOKEN=hf_...
 ```
 
-Use `wrangler secret {list,put,delete} --name=...` to manage secrets for a deployed worker (or use the [dash](https://dash.cloudflare.com)).
+See [`types.ts`](./lib/types.ts) for more. Use `wrangler secret {list,put,delete} --name=...` to manage secrets for a deployed worker (or use the [dash](https://dash.cloudflare.com)).
 
 ### Scripts
 

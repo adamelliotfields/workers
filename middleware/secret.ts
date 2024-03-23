@@ -1,9 +1,11 @@
 import { HTTPException } from 'hono/http-exception'
 import type { MiddlewareHandler } from 'hono/types'
 
-const secret = (): MiddlewareHandler => {
+import type { Env } from '../lib/types'
+
+export default function secret(): MiddlewareHandler {
   return async (c, next) => {
-    const secret = c.env.SECRET
+    const { SECRET: secret } = (c.env as Env) || {} // undefined in tests
     if (!secret) return await next()
 
     const url = new URL(c.req.url)
@@ -18,4 +20,3 @@ const secret = (): MiddlewareHandler => {
     await next()
   }
 }
-export default secret

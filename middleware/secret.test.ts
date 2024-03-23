@@ -8,8 +8,8 @@ describe('secret', () => {
   app.use(secret())
   app.get('/', (c) => c.text('OK'))
 
-  it('should allow requests without a secret', async () => {
-    const res = await app.request('/', {}, { SECRET: undefined })
+  it('should allow requests when `SECRET` is not set', async () => {
+    const res = await app.request('/', {})
     expect(res.status).toEqual(200)
     expect(await res.text()).toEqual('OK')
   })
@@ -40,25 +40,25 @@ describe('secret', () => {
     expect(await res.text()).toEqual('OK')
   })
 
-  it('should throw 401 when the header is incorrect', async () => {
+  it('should throw 401 when both are missing', async () => {
+    const SECRET = 'test'
+    const res = await app.request('/', {}, { SECRET })
+    expect(res.status).toEqual(401)
+  })
+
+  it('should throw 401 when the query string is wrong', async () => {
+    const SECRET = 'test'
+    const res = await app.request('/?api_key=wrong', {}, { SECRET })
+    expect(res.status).toEqual(401)
+  })
+
+  it('should throw 401 when the header is wrong', async () => {
     const SECRET = 'test'
     const res = await app.request(
       '/',
       { headers: { 'X-Api-Key': 'wrong' } },
       { SECRET }
     )
-    expect(res.status).toEqual(401)
-  })
-
-  it('should throw 401 when the query string is incorrect', async () => {
-    const SECRET = 'test'
-    const res = await app.request('/?api_key=wrong', {}, { SECRET })
-    expect(res.status).toEqual(401)
-  })
-
-  it('should throw 401 when both are missing', async () => {
-    const SECRET = 'test'
-    const res = await app.request('/', {}, { SECRET })
     expect(res.status).toEqual(401)
   })
 

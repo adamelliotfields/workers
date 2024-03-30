@@ -4,9 +4,9 @@ import type { MiddlewareHandler } from 'hono/types'
 import type { Env } from '../utils/types'
 
 export default function secret(): MiddlewareHandler {
-  return async (c, next) => {
+  return (c, next) => {
     const { SECRET: secret } = (c.env as Env) || {} // undefined in tests
-    if (!secret) return await next()
+    if (!secret) return next()
 
     const url = new URL(c.req.url)
     const apiKeyHeader = c.req.header('X-Api-Key')
@@ -17,6 +17,6 @@ export default function secret(): MiddlewareHandler {
       throw new HTTPException(401, { message: 'Unauthorized' })
     }
 
-    await next()
+    return next()
   }
 }

@@ -81,7 +81,7 @@ app.get('/', async (c) => {
 })
 
 // POST /
-// curl http://localhost:8787 -X POST -d '{ "messages": [{ "role": "system", "content": "Be awesome." }, { "role": "user", "content": "How are you?" }] }'
+// curl http://localhost:8787 -d '{ "messages": [{ "role": "system", "content": "Be awesome." }, { "role": "user", "content": "How are you?" }] }'
 app.post('/', async (c) => {
   const { PPLX_API_KEY } = c.env as Env
 
@@ -101,8 +101,14 @@ app.post('/', async (c) => {
   }
 })
 
-// POST /chat/completions (proxy)
-// curl http://localhost:8787/chat/completions -X POST -H 'Content-Type: application/json' -d '{ "model": "mistral-7b-instruct", "messages": [{ "role": "system", "content": "Be precise." }, { "role": "user", "content": "Explain backpropagation." }] }'
-app.post('/chat/completions', handleProxy({ url: BASE_URL, envToken: 'PPLX_API_KEY' }))
+// proxy
+// curl http://localhost:8787/chat/completions -H 'Content-Type: application/json' -d '{ "model": "mistral-7b-instruct", "messages": [{ "role": "system", "content": "Be accurate and detailed." }, { "role": "user", "content": "Explain backpropagation." }] }'
+app.all('*', (c, next) => {
+  const { PPLX_API_KEY } = c.env as Env
+  return handleProxy({
+    host: BASE_URL,
+    headers: { Authorization: PPLX_API_KEY ? `Bearer ${PPLX_API_KEY}` : undefined }
+  })(c, next)
+})
 
 export default app

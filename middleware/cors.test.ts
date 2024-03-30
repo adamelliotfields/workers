@@ -10,7 +10,7 @@ const ACAM = 'Access-Control-Allow-Methods'
 
 describe('cors', () => {
   const app = new Hono()
-  app.use(cors({ addHeaders: ['X-Custom-Header'], addMethods: ['PATCH'] }))
+  app.use(cors({ headers: ['X-Custom-Header'], methods: ['PATCH'] }))
   app.get('/', (c) => c.text('OK'))
 
   it('should set the origin to `ORIGIN` when set', async () => {

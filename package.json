@@ -8,6 +8,8 @@
     "deploy:hf": "wrangler deploy ./huggingface/worker.ts",
     "start:pplx": "wrangler dev ./perplexity/worker.ts",
     "deploy:pplx": "wrangler deploy ./perplexity/worker.ts",
+    "start:proxy": "wrangler dev ./proxy/worker.ts",
+    "deploy:proxy": "wrangler deploy ./proxy/worker.ts",
     "lint": "biome ci .",
     "test": "bun test"
   },

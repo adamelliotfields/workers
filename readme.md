@@ -4,7 +4,7 @@ Cloudflare workers ⚡
 
 ## Installation
 
-[Bun](https://bun.sh) is used for deps, tests, and scripts; [Wrangler](https://developers.cloudflare.com/workers/wrangler) is for development and deployment.
+[Bun](https://bun.sh) is used for deps, tests, and scripts; [Wrangler](https://developers.cloudflare.com/workers/wrangler) for development and deployment.
 
 ```sh
 # install bun
@@ -23,13 +23,13 @@ export CLOUDFLARE_API_TOKEN=...
 
 ### Environment variables
 
-Each worker depends on a `.dev.vars` in its directory. These set secrets on the `env` object during development. For example, the `huggingface` worker would require this in `huggingface/.dev.vars`:
+Create a `.dev.vars` file in the worker's folder. These set secrets on the `env` object during development. For example, the `huggingface` worker would require this in `huggingface/.dev.vars`:
 
 ```
 HF_TOKEN=hf_...
 ```
 
-See [`types.ts`](./lib/types.ts) for more. Use `wrangler secret {list,put,delete} --name=...` to manage secrets for a deployed worker (or use the [dash](https://dash.cloudflare.com)).
+See [`types.ts`](./lib/types.ts) for more. Use `wrangler secret {list,put,delete} --name=...` to manage secrets for a deployed worker.
 
 ### Scripts
 
@@ -45,10 +45,120 @@ bun deploy:hf
 
 ## Workers
 
-### [`huggingface`](./src/huggingface/worker.ts)
+### [`huggingface`](./huggingface/worker.ts)
 
 Wrapper around the 🤗 [Inference API](https://huggingface.co/inference-api/serverless).
 
-### [`perplexity`](./src/perplexity/worker.ts)
+#### `GET /`
+
+Supports query params with task presets and default models for convenience.
+
+```sh
+curl \
+  -G \
+  -d 'model=google/flan-t5-base&inputs=Translate+to+French:+I+love+Hugging+Face!' \
+  https://localhost:8787
+
+curl \
+  -G \
+  -d 'task=text-to-image&inputs=watercolor+painting+marina+sunset&negative_prompt=birds' \
+  https://localhost:8787
+```
+
+#### `POST /`
+
+Same as above but with JSON
+
+```sh
+curl \
+  -d '{ "task": "text-to-speech", "inputs": "I love Hugging Face!" }' \
+  -o speech.flac \
+  https://localhost:8787
+```
+
+#### `POST /chat/completions`
+
+OpenAI-compatible chat format. Model defaults to [`huggingfaceh4/zephyr-7b-beta`](https://huggingface.co/HuggingFaceH4/zephyr-7b-beta). See [TGI Messages API](https://huggingface.co/blog/tgi-messages-api).
+
+```sh
+curl \
+  -d '{ "messages": [{ "role": "system", "content": "Be precise and concise." }, { "role": "user", "content": "How many stars are in our galaxy?" }] }' \
+  https://localhost:8787/chat/completions
+```
+
+```ts
+import OpenAI from 'openai'
+
+const openai = new OpenAI({
+  apiKey: '', // pass empty string
+  baseURL: 'http://localhost:8787/chat/completions'
+})
+
+const stream = await openai.chat.completions.create({
+  stream: true,
+  model: 'huggingfaceh4/zephyr-7b-beta',
+  messages: [
+    { role: 'system', content: 'Be precise and concise.' },
+    { role: 'user', content: 'How many stars are in our galaxy?' }
+  ]
+})
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta?.content || '')
+}
+```
+
+### [`perplexity`](./perplexity/worker.ts)
 
 Wrapper around the [Perplexity.ai API](https://docs.perplexity.ai).
+
+#### `GET /`
+
+Supports query params for convenience. Model defaults to [`mistral-7b-instruct`](https://mistral.ai/news/announcing-mistral-7b/) and system prompt defaults to `Be precise and concise.`.
+
+```sh
+curl \
+  -G \
+  -d 'prompt=How+many+stars+are+in+our+galaxy?' \
+  https://localhost:8787
+```
+
+#### `POST /`
+
+OpenAI-compatible chat format.
+
+```sh
+curl \
+  -d '{ "messages": [{ "role": "system", "content": "Be precise and concise." }, { "role": "user", "content": "How many stars are in our galaxy?" }] }' \
+  https://localhost:8787
+```
+
+```ts
+import OpenAI from 'openai'
+
+const openai = new OpenAI({
+  apiKey: '', // pass empty string
+  baseURL: 'http://localhost:8787/chat/completions'
+})
+
+const stream = await openai.chat.completions.create({
+  stream: true,
+  model: 'mistral-7b-instruct',
+  messages: [
+    { role: 'system', content: 'Be precise and concise.' },
+    { role: 'user', content: 'How many stars are in our galaxy?' }
+  ]
+})
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta?.content || '')
+}
+```
+
+### [`proxy`](./proxy/worker.ts)
+
+Simple proxy for any URL. Sets CORS headers on the response.
+
+```sh
+curl http://localhost:8787/users/1?host=api.github.com
+```

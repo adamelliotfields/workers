@@ -164,13 +164,15 @@ app.post('/chat/completions', async (c) => {
   return new Response(res.data, res)
 })
 
-app.all(
-  '*',
-  handleProxy({
-    url: BASE_URL,
-    envToken: 'HF_TOKEN',
-    addHeaders: { 'X-Wait-For-Model': 'true' }
-  })
-)
+app.all('*', (c, next) => {
+  const { HF_TOKEN } = c.env as Env
+  return handleProxy({
+    host: BASE_URL,
+    headers: {
+      Authorization: HF_TOKEN ? `Bearer ${HF_TOKEN}` : undefined,
+      'X-Wait-For-Model': 'true'
+    }
+  })(c, next)
+})
 
 export default app

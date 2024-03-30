@@ -1,47 +1,43 @@
 import type { Handler } from 'hono'
 
-import type { Env } from './types'
-
 export interface ProxyConfig {
-  /** The URL to proxy requests to. */
-  url: string
+  /** The host to proxy requests to. */
+  host: string
   /** Optional additional headers to include in the proxied request. */
-  addHeaders?: Record<string, string>
-  /** Optional secret environment variable name to use as a token. */
-  envToken?: keyof Env
-  /** Use API key instead of Bearer auth. */
-  useApiKey?: boolean
+  headers?: Record<string, string>
 }
 
 export default function handleProxy(config: ProxyConfig): Handler {
   return async (c) => {
-    const { url, envToken, addHeaders = {}, useApiKey = false } = config
-    const TOKEN = c.env[envToken] as string
+    const { host, headers = {} } = config
 
-    // get the url from the request and swap the host
-    const host = c.req.header('Host')
-    const newHost = url.slice(8)
-    let { href } = new URL(c.req.url)
-    href = href.replace(host, newHost)
-    href = href.replace('http://', 'https://')
+    // get the request host and proxy host
+    const oldHost = c.req.header('Host')
+    const newHost = host.startsWith('https://')
+      ? host.slice(8)
+      : host.startsWith('http://')
+        ? host.slice(7)
+        : host
 
-    // create a new mutable request object
+    // drop the host parameter and ensure HTTPS
+    const url = new URL(c.req.url)
+    url.searchParams.delete('host')
+    url.protocol = 'https:'
+
+    // swap the host domain
+    let { href } = url
+    href = href.replace(oldHost, newHost)
+
+    // create a mutable request and set the new host header
     const req = new Request(href, c.req.raw)
     req.headers.set('Host', newHost)
 
-    // add the token to the headers
-    if (TOKEN) {
-      const key = useApiKey ? 'X-Api-Key' : 'Authorization'
-      const value = useApiKey ? TOKEN : `Bearer ${TOKEN}`
-      req.headers.set(key, value)
-    }
-
     // add any additional headers
-    for (const [key, value] of Object.entries(addHeaders)) {
+    for (const [key, value] of Object.entries(headers)) {
       req.headers.set(key, value)
     }
 
-    // fetch the proxied request and return a new mutable response
+    // proxy the request and return a mutable response
     const res = await fetch(req)
     return new Response(res.body, res)
   }

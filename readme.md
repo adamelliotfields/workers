@@ -163,7 +163,7 @@ Simple proxy for any URL. Sets CORS headers on the response. Accepts optional he
 curl http://localhost:8787/user/1?host=api.github.com
 
 # with auth
-curl http://localhost:8787/user/1?host=api.github.com&headers=authorization=Bearer+$GH_TOKEN
+curl "http://localhost:8787/user/1?host=api.github.com&headers=authorization=Bearer%20${GH_TOKEN}"
 
 # with response headers removed
 curl http://localhost:8787/user/1?host=api.github.com&headers=-x-frame-options,-content-security-policy

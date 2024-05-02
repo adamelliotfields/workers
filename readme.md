@@ -114,7 +114,7 @@ Wrapper around the [Perplexity.ai API](https://docs.perplexity.ai).
 
 #### `GET /`
 
-Supports query params for convenience. Model defaults to [`mistral-7b-instruct`](https://mistral.ai/news/announcing-mistral-7b/) and system prompt defaults to `Be precise and concise.`.
+Supports query params for convenience. Model defaults to `llama-3-sonar-small-32k-chat` and system prompt defaults to `Be precise and concise.`.
 
 ```sh
 curl \
@@ -143,7 +143,7 @@ const openai = new OpenAI({
 
 const stream = await openai.chat.completions.create({
   stream: true,
-  model: 'mistral-7b-instruct',
+  model: 'llama-3-sonar-large-32k-chat',
   messages: [
     { role: 'system', content: 'Be precise and concise.' },
     { role: 'user', content: 'How many stars are in our galaxy?' }

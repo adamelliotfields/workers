@@ -16,7 +16,7 @@ import env from '../middleware/env'
 import secret from '../middleware/secret'
 
 const BASE_URL = 'https://api.perplexity.ai'
-const DEFAULT_MODEL = 'mistral-7b-instruct'
+const DEFAULT_MODEL = 'llama-3-sonar-small-32k-chat'
 
 const client = axios.create({
   baseURL: BASE_URL,

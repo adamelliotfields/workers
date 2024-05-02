@@ -105,9 +105,10 @@ app.post('/', async (c) => {
 // curl http://localhost:8787/chat/completions -H 'Content-Type: application/json' -d '{ "model": "mistral-7b-instruct", "messages": [{ "role": "system", "content": "Be accurate and detailed." }, { "role": "user", "content": "Explain backpropagation." }] }'
 app.all('*', (c, next) => {
   const { PPLX_API_KEY } = c.env as Env
+  const authorization = PPLX_API_KEY ? `Bearer ${PPLX_API_KEY}` : ''
   return handleProxy({
     host: BASE_URL,
-    headers: { Authorization: PPLX_API_KEY ? `Bearer ${PPLX_API_KEY}` : undefined }
+    headers: [authorization.length && `Authorization=${authorization}`].filter(Boolean)
   })(c, next)
 })
 

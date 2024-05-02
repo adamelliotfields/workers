@@ -21,7 +21,7 @@ export default function cors(config: CorsConfig = {}): MiddlewareHandler {
 
     return corsMiddleware({
       origin,
-      credentials: origin === '*' ? false : true,
+      credentials: origin !== '*',
       allowMethods: ['GET', 'POST', 'OPTIONS', ...methods],
       allowHeaders: [
         origin !== '*' && 'Authorization',

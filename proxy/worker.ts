@@ -18,13 +18,17 @@ app.use(cors())
 
 // proxy
 app.all('*', (c, next) => {
-  const { host } = c.req.query()
+  const { host, headers: h } = c.req.query()
 
   if (!host) {
     throw new HTTPException(400, { message: 'Missing required "host" parameter' })
   }
 
-  return handleProxy({ host })(c, next)
+  // h is an optional string separated by commas
+  // e.g. "key=value,-key"
+  const headers = h ? h.split(',') : undefined
+
+  return handleProxy({ host, headers })(c, next)
 })
 
 export default app

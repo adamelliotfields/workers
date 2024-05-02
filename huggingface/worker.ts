@@ -166,12 +166,13 @@ app.post('/chat/completions', async (c) => {
 
 app.all('*', (c, next) => {
   const { HF_TOKEN } = c.env as Env
+  const authorization = HF_TOKEN ? `Bearer ${HF_TOKEN}` : ''
   return handleProxy({
     host: BASE_URL,
-    headers: {
-      Authorization: HF_TOKEN ? `Bearer ${HF_TOKEN}` : undefined,
-      'X-Wait-For-Model': 'true'
-    }
+    headers: [
+      authorization.length && `Authorization=${authorization}`,
+      'X-Wait-For-Model=true'
+    ].filter(Boolean)
   })(c, next)
 })
 

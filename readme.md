@@ -157,8 +157,14 @@ for await (const chunk of stream) {
 
 ### [`proxy`](./proxy/worker.ts)
 
-Simple proxy for any URL. Sets CORS headers on the response.
+Simple proxy for any URL. Sets CORS headers on the response. Accepts optional headers that can be added to the request or removed from the response.
 
 ```sh
-curl http://localhost:8787/users/1?host=api.github.com
+curl http://localhost:8787/user/1?host=api.github.com
+
+# with auth
+curl http://localhost:8787/user/1?host=api.github.com&headers=authorization=Bearer+$GH_TOKEN
+
+# with response headers removed
+curl http://localhost:8787/user/1?host=api.github.com&headers=-x-frame-options,-content-security-policy
 ```

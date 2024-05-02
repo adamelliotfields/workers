@@ -3,13 +3,31 @@ import type { Handler } from 'hono'
 export interface ProxyConfig {
   /** The host to proxy requests to. */
   host: string
-  /** Optional additional headers to include in the proxied request. */
-  headers?: Record<string, string>
+  /** Optional list of headers in `key=value` or `-key` format. */
+  headers?: string[]
 }
 
 export default function handleProxy(config: ProxyConfig): Handler {
   return async (c) => {
-    const { host, headers = {} } = config
+    const { host, headers = [] } = config
+
+    // add headers to the request or remove headers from the response
+    const addHeaders: Record<string, string> = {}
+    const removeHeaders: string[] = []
+
+    for (const header of headers) {
+      if (header.startsWith('-')) {
+        removeHeaders.push(header.slice(1))
+        continue
+      }
+
+      if (!header.includes('=')) {
+        continue
+      }
+
+      const [key, value] = header.split('=')
+      addHeaders[key] = value
+    }
 
     // get the request host and proxy host
     const oldHost = c.req.header('Host')
@@ -19,8 +37,9 @@ export default function handleProxy(config: ProxyConfig): Handler {
         ? host.slice(7)
         : host
 
-    // drop the host parameter and ensure HTTPS
+    // drop the search parameters and ensure HTTPS
     const url = new URL(c.req.url)
+    url.searchParams.delete('headers')
     url.searchParams.delete('host')
     url.protocol = 'https:'
 
@@ -28,17 +47,22 @@ export default function handleProxy(config: ProxyConfig): Handler {
     let { href } = url
     href = href.replace(oldHost, newHost)
 
-    // create a mutable request and set the new host header
+    // create a mutable request and set headers
     const req = new Request(href, c.req.raw)
     req.headers.set('Host', newHost)
 
-    // add any additional headers
-    for (const [key, value] of Object.entries(headers)) {
+    for (const [key, value] of Object.entries(addHeaders)) {
       req.headers.set(key, value)
     }
 
-    // proxy the request and return a mutable response
-    const res = await fetch(req)
-    return new Response(res.body, res)
+    // proxy the request and create a mutable response
+    let res = await fetch(req)
+    res = new Response(res.body, res)
+
+    // remove any unwanted headers and return
+    for (const header of removeHeaders) {
+      res.headers.delete(header)
+    }
+    return res
   }
 }

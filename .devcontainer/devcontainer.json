@@ -1,14 +1,10 @@
 {
-  "name": "workers",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
-  "postCreateCommand": "npm install",
+  "build": { "dockerfile": "Dockerfile" },
+  "postCreateCommand": "bun i --frozen-lockfile",
   "waitFor": "postCreateCommand",
-  "customizations": {
-    "vscode": {
-      "extensions": ["biomejs.biome", "oven.bun-vscode", "tamasfe.even-better-toml"]
-    }
-  },
   "containerEnv": {
+    "CLOUDFLARE_ACCOUNT_ID": "${localEnv:CLOUDFLARE_ACCOUNT_ID}",
+    "CLOUDFLARE_API_TOKEN": "${localEnv:CLOUDFLARE_API_TOKEN}",
     "GH_TOKEN": "${localEnv:GH_TOKEN}"
   }
 }
